@@ -1,14 +1,14 @@
-# tasks file
+# tasks file for percona-server-tools
 ---
 - name: setup master replication | check service
-  ansible.builtin.service:
+  service:
     name: mysql
     state: started
   tags:
     - percona-server-tools-setup-master-replication-check-service
 
 - name: setup master replication | remove (backup) directory
-  ansible.builtin.file:
+  file:
     path: "{{ percona_server_tools_setup_master_replication.innobackupex.backup_dir }}"
     state: absent
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1
@@ -16,7 +16,7 @@
     - percona-server-tools-setup-master-replication-remove-backup-directory
 
 - name: setup master replication | make a backup
-  ansible.builtin.shell: >
+  shell: >
     ulimit -n {{ percona_server_tools_ulimit }} && \
     innobackupex \
       --no-timestamp \
@@ -27,13 +27,12 @@
       {{ percona_server_tools_setup_master_replication.innobackupex.backup_dir }}
   register: _make_a_backup
   failed_when: "_make_a_backup.rc != 0 or _make_a_backup.stderr.split('\n')[-1].find('completed OK') == -1"
-  changed_when: true
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1
   tags:
     - percona-server-tools-setup-master-replication-make-a-backup
 
 - name: setup master replication | prepare the backup
-  ansible.builtin.shell: >
+  shell: >
     ulimit -n {{ percona_server_tools_ulimit }} && \
     innobackupex \
       --apply-log \
@@ -43,13 +42,12 @@
       {{ percona_server_tools_setup_master_replication.innobackupex.backup_dir }}
   register: _prepare_a_backup
   failed_when: "_prepare_a_backup.rc != 0 or _prepare_a_backup.stderr.split('\n')[-1].find('completed OK') == -1"
-  changed_when: true
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1
   tags:
     - percona-server-tools-setup-master-replication-prepare-the-backup
 
 - name: setup master replication | get datadir
-  community.mysql.mysql_variables:
+  mysql_variables:
     variable: datadir
   register: _datadir_value
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
@@ -57,28 +55,28 @@
     - percona-server-tools-setup-master-replication-get-datadir
 
 - name: setup master replication | set datadir
-  ansible.builtin.set_fact:
+  set_fact:
     percona_server_tools_datadir: "{{ _datadir_value.msg }}"
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-set-datadir
 
 - name: setup master replication | stop slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: stopslave
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-stop-slave
 
 - name: setup master replication | reset slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: resetslaveall
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-reset-slave
 
 - name: setup master replication | stop service
-  ansible.builtin.service:
+  service:
     name: mysql
     state: stopped
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
@@ -86,20 +84,20 @@
     - percona-server-tools-setup-master-replication-stop-service
 
 - name: setup master replication | purge datadir
-  ansible.builtin.file:
+  file:
     path: "{{ percona_server_tools_datadir.rstrip('/') }}"
     state: absent
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-purge-datadir
 
-- name: setup master replication | pull backup  # noqa command-instead-of-module
-  ansible.builtin.command: >
-    rsync
-    -ai --delete
-    -e 'ssh{% if percona_server_tools_setup_master_replication.ssh_opts is defined %} {{ percona_server_tools_setup_master_replication.ssh_opts | join(" ") }}{% endif %}'
-    {{ percona_server_tools_setup_master_replication.master1.host }}:{{ percona_server_tools_setup_master_replication.innobackupex.backup_dir }}/
-    {{ percona_server_tools_datadir.rstrip('/') }}
+- name: setup master replication | pull backup
+  command: >
+    rsync \
+      -ai --delete \
+      -e 'ssh{% if percona_server_tools_setup_master_replication.ssh_opts is defined %} {{ percona_server_tools_setup_master_replication.ssh_opts | join(" ") }}{% endif %}' \
+      {{ percona_server_tools_setup_master_replication.master1.host }}:{{percona_server_tools_setup_master_replication.innobackupex.backup_dir}}/ \
+      {{ percona_server_tools_datadir.rstrip('/') }}
   register: _pull_backup
   changed_when: _pull_backup.stdout_lines | length > 0
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
@@ -107,7 +105,7 @@
     - percona-server-tools-setup-master-replication-pull-backup
 
 - name: setup master replication | set permissions
-  ansible.builtin.file:
+  file:
     path: "{{ percona_server_tools_datadir.rstrip('/') }}"
     owner: "{{ percona_server_tools_mysqld_user }}"
     group: "{{ percona_server_tools_mysqld_user }}"
@@ -117,20 +115,20 @@
     - percona-server-tools-setup-master-replication-set-permissions
 
 - name: setup master replication | stat debian.cnf
-  ansible.builtin.stat:
+  stat:
     path: "{{ percona_server_tools_debian_cnf_file }}"
   register: _stat_debian_cnf
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-stat-debian.cnf
 
-- name: setup master replication | pull debian.cnf  # noqa command-instead-of-module
-  ansible.builtin.command: >
-    rsync
-    -ai --checksum --delete
-    -e ssh
-    {{ percona_server_tools_setup_master_replication.master1.host }}:{{ percona_server_tools_debian_cnf_file }}
-    {{ percona_server_tools_debian_cnf_file }}
+- name: setup master replication | pull debian.cnf
+  command: >
+    rsync \
+      -ai --checksum --delete \
+      -e ssh \
+      {{ percona_server_tools_setup_master_replication.master1.host }}:{{ percona_server_tools_debian_cnf_file }} \
+      {{ percona_server_tools_debian_cnf_file }}
   register: _pull_debian_cnf
   changed_when: _pull_debian_cnf.stdout_lines | length > 0
   when:
@@ -140,23 +138,15 @@
     - percona-server-tools-setup-master-replication-pull-debian.cnf
 
 - name: setup master replication | start service
-  ansible.builtin.service:
+  service:
     name: mysql
     state: started
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-start-service
 
-- name: setup master replication | set offline_mode to 1 (online)
-  community.mysql.mysql_variables:
-    variable: offline_mode
-    value: '0'
-  when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
-  tags:
-    - percona-server-tools-setup-master-replication-set-offline_mode
-
 - name: setup master replication | get master
-  ansible.builtin.command: >
+  command: >
     cat {{ percona_server_tools_datadir.rstrip('/') }}/xtrabackup_binlog_info
   register: _master1_log_information
   changed_when: false
@@ -165,7 +155,7 @@
     - percona-server-tools-setup-master-replication-get-master
 
 - name: setup master replication | change master
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: changemaster
     master_host: "{{ percona_server_tools_setup_master_replication.master1.host }}"
     master_user: "{{ percona_server_tools_setup_master_replication.master1.user }}"
@@ -177,14 +167,14 @@
     - percona-server-tools-setup-master-replication-start-service
 
 - name: setup master replication | start slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: startslave
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
   tags:
     - percona-server-tools-setup-master-replication-start-slave
 
 - name: setup master replication | get slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: getslave
   register: _slave2_information
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master2
@@ -193,7 +183,7 @@
     - percona-server-tools-setup-master-replication-get-slave
 
 - name: setup master replication | get master
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: getmaster
     login_host: "{{ percona_server_tools_setup_master_replication.master2.host }}"
     login_user: "{{ percona_server_tools_setup_master_replication.master2.user | default(percona_server_tools_setup_master_replication.master1.user) }}"
@@ -204,21 +194,21 @@
     - percona-server-tools-setup-master-replication-get-master
 
 - name: setup master replication | stop slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: stopslave
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1
   tags:
     - percona-server-tools-setup-master-replication-stop-slave
 
 - name: setup master replication | reset slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: resetslaveall
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1
   tags:
     - percona-server-tools-setup-master-replication-reset-slave
 
 - name: setup master replication | change master
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: changemaster
     master_host: "{{ percona_server_tools_setup_master_replication.master2.host }}"
     master_user: "{{ percona_server_tools_setup_master_replication.master2.user | default(percona_server_tools_setup_master_replication.master1.user) }}"
@@ -230,14 +220,14 @@
     - percona-server-tools-setup-master-replication-change-master
 
 - name: setup master replication | start slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: startslave
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1
   tags:
     - percona-server-tools-setup-master-replication-start-slave
 
 - name: setup master replication | get slave
-  community.mysql.mysql_replication:
+  mysql_replication:
     mode: getslave
   register: _slave1_information
   when: inventory_hostname == percona_server_tools_setup_master_replication.inventory.master1

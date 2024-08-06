@@ -1,7 +1,6 @@
 ## percona-server-tools
 
-[![CI](https://github.com/Oefenweb/ansible-percona-server-tools/workflows/CI/badge.svg)](https://github.com/Oefenweb/ansible-percona-server-tools/actions?query=workflow%3ACI)
-[![Ansible Galaxy](http://img.shields.io/badge/ansible--galaxy-percona--server--tools-blue.svg)](https://galaxy.ansible.com/Oefenweb/percona_server_tools)
+[![Build Status](https://travis-ci.org/Oefenweb/ansible-percona-server-tools.svg?branch=master)](https://travis-ci.org/Oefenweb/ansible-percona-server-tools) [![Ansible Galaxy](http://img.shields.io/badge/ansible--galaxy-percona--server--tools-blue.svg)](https://galaxy.ansible.com/Oefenweb/percona-server-tools)
 
 Manage [percona-server](https://www.percona.com/software/mysql-database/percona-server) server (or any other flavour of MySQL) in Debian-like systems.
 
@@ -114,7 +113,7 @@ None
 ---
 - hosts: all
   roles:
-    - oefenweb.percona-server-tools
+    - percona-server-tools
   vars:
     percona_server_tools_reset_root_password:
       run: true
@@ -127,7 +126,7 @@ None
 ---
 - hosts: all
   roles:
-    - oefenweb.percona-server-tools
+    - percona-server-tools
   vars:
     percona_server_tools_reset_ib_logfile:
       run: true
@@ -139,7 +138,7 @@ None
 ---
 - hosts: all
   roles:
-    - oefenweb.percona-server-tools
+    - percona-server-tools
   vars:
     percona_server_tools_setup_slave_replication:
       run: true
@@ -163,7 +162,7 @@ None
 ---
 - hosts: all
   roles:
-    - oefenweb.percona-server-tools
+    - percona-server-tools
   vars:
     percona_server_tools_setup_master_replication:
       run: true

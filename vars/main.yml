@@ -1,4 +1,4 @@
-# vars file
+# vars file for percona-server-tools
 ---
 percona_server_tools_ulimit: 65535
 
